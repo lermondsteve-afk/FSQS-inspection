@@ -69,4 +69,5 @@ def api_analyse_ia():
     return jsonify({'reponse': chat_completion.choices[0].message.content})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Le port 10000 est celui utilisé par Render par défaut
+    app.run(host='0.0.0.0', port=10000)
