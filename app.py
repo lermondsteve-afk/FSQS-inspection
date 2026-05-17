@@ -32,7 +32,7 @@ def q1(sql, args=()):
 # ── Pages ──────────────────────────────────────────────────────────────────
 @app.route('/')
 def index():
-    return open('templates/index.html', encoding='utf-8').read()
+   return open('index.html', encoding='utf-8').read()
 
 # ── API — Analyse IA (Version Groq Gratuite) ───────────────────────────────
 @app.route('/api/analyse_ia', methods=['POST'])
