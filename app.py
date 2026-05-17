@@ -34,33 +34,6 @@ def q1(sql, args=()):
 def index():
     return open('templates/index.html', encoding='utf-8').read()
 
-# ── API — KPIs ─────────────────────────────────────────────────────────────
-@app.route('/api/kpis')
-def api_kpis():
-    periode = int(request.args.get('jours', 30))
-    since = (date.today() - timedelta(periode)).isoformat()
-    since_prev = (date.today() - timedelta(periode * 2)).isoformat()
-
-    cur = q1("SELECT ROUND(AVG(score_global),1) as s, SUM(nb_ko) as k, SUM(nb_alertes) as a, COUNT(*) as n FROM inspections WHERE date>=?", (since,))
-    prev = q1("SELECT ROUND(AVG(score_global),1) as s FROM inspections WHERE date>=? AND date<?", (since_prev, since))
-
-    score = cur['s'] or 0
-    score_prev = prev['s'] or score
-    delta = round(score - score_prev, 1)
-
-    total_items = q1("SELECT COUNT(*) as n FROM resultats r JOIN inspections i ON r.inspection_id=i.id WHERE i.date>=?", (since,))['n']
-    conf_items = q1("SELECT COUNT(*) as n FROM resultats r JOIN inspections i ON r.inspection_id=i.id WHERE i.date>=? AND r.notation='A'", (since,))['n']
-    conf_rate = round(conf_items / total_items * 100) if total_items else 0
-
-    return jsonify({
-        'score_global': score,
-        'score_delta': delta,
-        'nb_ko': cur['k'] or 0,
-        'nb_alertes': cur['a'] or 0,
-        'nb_inspections': cur['n'] or 0,
-        'conf_rate': conf_rate,
-    })
-
 # ── API — Analyse IA (Version Groq Gratuite) ───────────────────────────────
 @app.route('/api/analyse_ia', methods=['POST'])
 def api_analyse_ia():
@@ -72,6 +45,28 @@ def api_analyse_ia():
     periode = int(request.json.get('jours', 30))
     since = (date.today() - timedelta(periode)).isoformat()
 
-    # Build context from DB
+    # Build context
     kpis = q1("SELECT ROUND(AVG(score_global),1) as score, SUM(nb_ko) as ko, SUM(nb_alertes) as alertes, COUNT(*) as inspections FROM inspections WHERE date>=?", (since,))
-    scores_act = q("SELECT r.activite, ROUND(AVG(CASE r.notation WHEN 'A' THEN 100 WHEN 'B' THEN 66 WHEN 'C' THEN 33 WHEN 'D' THEN 0 END),1) as score FROM resultats r JOIN inspections i ON r.inspection_id=i.id WHERE i.date>=? AND r.notation NOT
+    
+    # Requête SQL corrigée et sur une seule ligne pour éviter les erreurs de coupure
+    scores_act = q("SELECT r.activite, ROUND(AVG(CASE r.notation WHEN 'A' THEN 100 WHEN 'B' THEN 66 WHEN 'C' THEN 33 WHEN 'D' THEN 0 END),1) as score FROM resultats r JOIN inspections i ON r.inspection_id=i.id WHERE i.date>=? AND r.notation NOT IN ('S/O','N/E') GROUP BY r.activite ORDER BY score", (since,))
+    
+    items_crit = q("SELECT r.item_num, r.item_label, r.activite, COUNT(CASE WHEN r.notation IN ('C','D') THEN 1 END) as nb_nc, ROUND(COUNT(CASE WHEN r.notation IN ('C','D') THEN 1 END)*100.0/COUNT(*),0) as pct_nc FROM resultats r JOIN inspections i ON r.inspection_id=i.id WHERE i.date>=? AND r.notation NOT IN ('S/O','N/E') GROUP BY r.item_num HAVING nb_nc>=3 ORDER BY pct_nc DESC LIMIT 8", (since,))
+    
+    alertes_rec = q("SELECT activite, item_label, gravite, statut, date FROM alertes_ko WHERE date>=? ORDER BY date DESC LIMIT 8", (since,))
+
+    context = f"KPIs: {kpis['score']}% score. Items NC: {items_crit}. Alertes: {alertes_rec}."
+
+    client = Groq(api_key=GROQ_KEY)
+    chat_completion = client.chat.completions.create(
+        messages=[
+            {"role": "system", "content": "Tu es un expert FSQS. Analyse les données et donne des recommandations concrètes."},
+            {"role": "user", "content": f"{context}\n\nQuestion: {question}"}
+        ],
+        model="llama3-70b-8192",
+    )
+
+    return jsonify({'reponse': chat_completion.choices[0].message.content})
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
