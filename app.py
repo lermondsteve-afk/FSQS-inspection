@@ -1,6 +1,10 @@
 """
 FSQS Inspection Pro — Backend Flask (Version Groq Gratuite)
 """
+# Ajoute ceci après tes imports
+@app.route('/test')
+def test():
+    return "Le serveur fonctionne !"
 import os, json, sqlite3
 from datetime import date, timedelta
 from flask import Flask, render_template, jsonify, request, g
