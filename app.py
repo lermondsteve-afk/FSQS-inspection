@@ -8,7 +8,7 @@ from groq import Groq
 
 app = Flask(__name__)
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'inspections.db')
+DB_PATH = os.path.join(os.path.dirname(__file__), 'inspections.db')
 
 # ── DB helpers ─────────────────────────────────────────────────────────────
 def get_db():
