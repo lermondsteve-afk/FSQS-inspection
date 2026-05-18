@@ -897,17 +897,62 @@ async function analyseIAInput(){
 async function doAnalyse(question){
   const loading = document.getElementById('ia-loading');
   const result = document.getElementById('ia-result');
-  loading.style.display='flex'; result.style.display='none';
+  loading.style.display='flex';
+  result.style.display='none';
+  result.textContent='';
+
+  // Show waiting message while server wakes up
+  document.querySelector('.ia-loading').innerHTML = `
+    <div class="spinner"></div>
+    <span id="ia-status">Connexion au serveur… (peut prendre 30 secondes si le serveur est en veille)</span>
+  `;
+
   try {
     const j = getPeriode();
-    const res = await post('/api/analyse_ia',{question, jours:j});
-    result.textContent = res.reponse || res.error || 'Erreur inconnue';
-    result.style.display='block';
+
+    // First ping the server to wake it up
+    try {
+      await fetch('/api/kpis?jours=7', { signal: AbortSignal.timeout(10000) });
+    } catch(e) {
+      // ignore, just waking up
+    }
+
+    document.getElementById('ia-status') && 
+      (document.getElementById('ia-status').textContent = 'Serveur actif — Analyse en cours…');
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+
+    const res = await fetch('/api/analyse_ia', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({question, jours: j}),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      const err = await res.json();
+      result.textContent = 'Erreur: ' + (err.error || res.status);
+    } else {
+      const data = await res.json();
+      result.textContent = data.reponse || 'Pas de réponse.';
+    }
+    result.style.display = 'block';
+
   } catch(e) {
-    result.textContent = 'Erreur de connexion au serveur.';
-    result.style.display='block';
+    if (e.name === 'AbortError') {
+      result.textContent = 'Le serveur a mis trop de temps à répondre. Réessayez dans 30 secondes — il se réveille.';
+    } else {
+      result.textContent = 'Erreur de connexion: ' + e.message;
+    }
+    result.style.display = 'block';
   }
-  loading.style.display='none';
+
+  // Restore loading indicator HTML for next time
+  loading.innerHTML = '<div class="spinner"></div>Analyse en cours…';
+  loading.style.display = 'none';
 }
 
 // ── Toast ──────────────────────────────────────────────────────────────────
@@ -918,7 +963,12 @@ function showToast(msg){
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
-reloadDashboard();
+  // Keep server awake
+setInterval(() => {
+  fetch('/api/ping').catch(() => {});
+}, 10 * 60 * 1000);
+  
+  reloadDashboard();
 </script>
 </body>
 </html>
