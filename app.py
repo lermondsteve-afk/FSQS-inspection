@@ -249,7 +249,7 @@ def api_analyse_ia():
             {"role": "system", "content": "Tu es un expert FSQS (Food Safety & Quality System). Analyse les données d'inspection et donne des recommandations concrètes, précises et actionnables."},
             {"role": "user", "content": f"{context}\n\nQuestion: {question}"}
         ],
-        model="llama3-70b-8192",
+        model="llama-3.3-70b-versatile",
     )
     return jsonify({'reponse': chat_completion.choices[0].message.content})
     
