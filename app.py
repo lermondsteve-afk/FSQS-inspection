@@ -252,6 +252,10 @@ def api_analyse_ia():
         model="llama3-70b-8192",
     )
     return jsonify({'reponse': chat_completion.choices[0].message.content})
-
+    
+@app.route('/api/ping')
+def ping():
+    return jsonify({'status': 'ok'})
+    
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
