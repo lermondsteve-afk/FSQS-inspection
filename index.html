@@ -371,15 +371,79 @@
       </div>
     </div>
 
+   
     <!-- ══ PAGE: ANALYSE IA ══ -->
-    <div class="page" id="page-ia">
-      <div class="ia-box">
-        <div class="ia-header">
-          <div class="ia-avatar"><i class="fa-solid fa-brain"></i></div>
-          <div>
-            <div style="font-size:14px;font-weight:600">Analyse intelligente</div>
-            <div style="font-size:12px;color:var(--text2)">Posez n'importe quelle question sur vos données d'inspection</div>
-          </div>
+<div class="page" id="page-ia">
+  <div class="card" style="display:flex;flex-direction:column;height:calc(100vh - 120px)">
+    
+    <!-- Chat header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-shrink:0">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="ia-avatar"><i class="fa-solid fa-brain"></i></div>
+        <div>
+          <div style="font-size:14px;font-weight:600">Assistant FSQS</div>
+          <div style="font-size:12px;color:var(--text2)">Posez vos questions sur vos données d'inspection</div>
+        </div>
+      </div>
+      <button onclick="clearChat()" style="font-size:11px;padding:5px 12px;border:1px solid var(--border);border-radius:8px;background:transparent;cursor:pointer;color:var(--text2)">
+        <i class="fa-solid fa-trash"></i> Effacer
+      </button>
+    </div>
+
+    <!-- Quick chips -->
+    <div class="ia-chips" style="flex-shrink:0" id="chat-chips">
+      <div class="chip" onclick="sendMessage('Quelle est la pire activité ce mois et pourquoi ?')">🔴 Pire activité</div>
+      <div class="chip" onclick="sendMessage('Quels sont les 5 items les plus non-conformes ?')">⚠️ Items critiques</div>
+      <div class="chip" onclick="sendMessage('Donne moi un plan d\'action prioritaire pour cette semaine')">📋 Plan d\'action</div>
+      <div class="chip" onclick="sendMessage('Compare toutes les activités entre elles')">📊 Comparaison</div>
+      <div class="chip" onclick="sendMessage('Quels KO sont les plus dangereux et comment les résoudre ?')">🚨 KO urgents</div>
+      <div class="chip" onclick="sendMessage('Génère un rapport complet pour la direction')">📄 Rapport direction</div>
+    </div>
+
+    <!-- Chat messages -->
+    <div id="chat-messages" style="
+      flex:1;
+      overflow-y:auto;
+      padding:8px 4px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      min-height:0;
+    ">
+      <!-- Welcome message -->
+      <div class="chat-msg-ai">
+        <div class="chat-bubble-ai">
+          👋 Bonjour ! Je suis votre assistant FSQS. Je connais toutes vos données d'inspection.<br><br>
+          Posez-moi n'importe quelle question — activités, KO, alertes, tendances, plans d'action…
+        </div>
+      </div>
+    </div>
+
+    <!-- Typing indicator -->
+    <div id="chat-typing" style="display:none;padding:8px 0;flex-shrink:0">
+      <div class="chat-bubble-ai" style="width:fit-content">
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+        <span class="typing-dot"></span>
+      </div>
+    </div>
+
+    <!-- Input bar -->
+    <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--border);flex-shrink:0">
+      <input 
+        id="chat-input" 
+        class="ia-input" 
+        placeholder="Ex: Pourquoi la Boucherie est-elle mauvaise ?" 
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+        style="flex:1"
+      >
+      <button class="ia-btn" onclick="sendMessage()" id="chat-send-btn">
+        <i class="fa-solid fa-paper-plane"></i>
+      </button>
+    </div>
+
+  </div>
+</div>
         </div>
         <div class="ia-chips">
           <div class="chip" onclick="analyseIA('Identifie les 5 items les plus souvent notés C ou D avec leur fréquence et leur activité. Propose des actions correctives concrètes.')">🔍 Items critiques</div>
