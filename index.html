@@ -755,33 +755,94 @@ async function loadItems() {
 function buildSaisie() {
   const today = new Date().toISOString().slice(0,10);
   document.getElementById('saisie-date').value = today;
-  const tbody = document.getElementById('saisie-tbody');
-  tbody.innerHTML='';
-  saisieData=[];
-  let lastAct='', lastStep='';
-  ITEMS_DB.forEach((item,i)=>{
-    if(item.activite!==lastAct){
-      tbody.innerHTML+=`<tr class="act-header-row"><td colspan="5"><i class="fa-solid fa-store" style="margin-right:8px"></i>${item.activite}</td></tr>`;
-      lastAct=item.activite; lastStep='';
-    }
-    if(item.etape!==lastStep){
-      tbody.innerHTML+=`<tr class="step-header-row"><td colspan="5"><i class="fa-solid fa-arrow-right" style="margin-right:6px"></i>${item.etape}</td></tr>`;
-      lastStep=item.etape;
-    }
-    const typeCls = item.type==='KO'?'type-ko':item.type==='Alerte'?'type-alerte':item.type==='Mesure'?'type-mesure':'';
-    const notas = ['A','B','C','D','S/O','N/E'];
-    const btns = notas.map(n=>`<button class="nota-btn ${n.replace('/','')}" onclick="setNota(${i},'${n}',this)">${n}</button>`).join('');
-    tbody.innerHTML+=`<tr>
-      <td style="color:var(--text2);font-size:11px">${item.num}</td>
-      <td style="font-size:12px;line-height:1.4">${item.label}${item.type!=='Standard'?`<span class="type-badge ${typeCls}" style="margin-left:6px">${item.type}</span>`:''}</td>
-      <td><span class="type-badge ${typeCls}">${item.type}</span></td>
-      <td><div class="notation-cell" id="nota-row-${i}">${btns}</div></td>
-      <td><input type="text" style="width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px" placeholder="Commentaire…" oninput="saisieData[${i}]&&(saisieData[${i}].commentaire=this.value)"></td>
-    </tr>`;
-    saisieData.push({...item, notation:null, commentaire:''});
-  });
+  saisieData = [];
+
+  // Get unique activities
+  const activites = [...new Set(ITEMS_DB.map(i => i.activite))];
+
+  // Build activity selector
+  const header = document.querySelector('.saisie-header');
+  
+  // Remove old activity selector if exists
+  const old = document.getElementById('activite-selector');
+  if (old) old.remove();
+
+  const selector = document.createElement('div');
+  selector.id = 'activite-selector';
+  selector.className = 'form-group';
+  selector.style.flex = '1';
+  selector.innerHTML = `
+    <div class="form-label">Activité</div>
+    <select class="form-input" id="activite-select" onchange="loadActivite(this.value)" style="min-width:220px">
+      <option value="">-- Choisir une activité --</option>
+      ${activites.map(a => `<option value="${a}">${a}</option>`).join('')}
+    </select>
+  `;
+  header.insertBefore(selector, header.children[2]);
+
+  // Clear table
+  document.getElementById('saisie-tbody').innerHTML = `
+    <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text2)">
+      Sélectionnez une activité ci-dessus pour commencer la saisie.
+    </td></tr>
+  `;
 }
 
+function loadActivite(activite) {
+  if (!activite) return;
+
+  const items = ITEMS_DB.filter(i => i.activite === activite);
+  const tbody = document.getElementById('saisie-tbody');
+  tbody.innerHTML = '';
+
+  // Make sure saisieData entries exist for these items
+  items.forEach(item => {
+    const key = `${item.activite}||${item.num}||${item.etape}`;
+    if (!saisieData.find(r => r._key === key)) {
+      saisieData.push({...item, _key: key, notation: null, commentaire: ''});
+    }
+  });
+
+  let lastStep = '';
+  items.forEach(item => {
+    const key = `${item.activite}||${item.num}||${item.etape}`;
+    const idx = saisieData.findIndex(r => r._key === key);
+
+    if (item.etape !== lastStep) {
+      tbody.innerHTML += `<tr class="step-header-row"><td colspan="5">
+        <i class="fa-solid fa-arrow-right" style="margin-right:6px"></i>${item.etape}
+      </td></tr>`;
+      lastStep = item.etape;
+    }
+
+    const typeCls = item.type === 'KO' ? 'type-ko' :
+                    item.type === 'Alerte' ? 'type-alerte' :
+                    item.type === 'Mesure' ? 'type-mesure' : '';
+
+    const notas = ['A','B','C','D','S/O','N/E'];
+    const current = saisieData[idx]?.notation;
+    const btns = notas.map(n => {
+      const sel = current === n ? 'sel' : '';
+      return `<button class="nota-btn ${n.replace('/','').replace('/','SE')} ${sel}" onclick="setNota(${idx},'${n}',this)">${n}</button>`;
+    }).join('');
+
+    tbody.innerHTML += `<tr>
+      <td style="color:var(--text2);font-size:11px">${item.num}</td>
+      <td style="font-size:12px;line-height:1.4">
+        ${item.label}
+        ${item.type !== 'Standard' ? `<span class="type-badge ${typeCls}" style="margin-left:6px">${item.type}</span>` : ''}
+      </td>
+      <td><span class="type-badge ${typeCls}">${item.type}</span></td>
+      <td><div class="notation-cell" id="nota-row-${idx}">${btns}</div></td>
+      <td><input type="text" style="width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px"
+          placeholder="Commentaire…"
+          value="${saisieData[idx]?.commentaire || ''}"
+          oninput="saisieData[${idx}]&&(saisieData[${idx}].commentaire=this.value)">
+      </td>
+    </tr>`;
+  });
+}
+  
 function setNota(idx, nota, btn){
   const row = document.getElementById(`nota-row-${idx}`);
   row.querySelectorAll('.nota-btn').forEach(b=>b.classList.remove('sel'));
@@ -793,15 +854,23 @@ async function submitSaisie(){
   const d = document.getElementById('saisie-date').value;
   const insp = document.getElementById('saisie-insp').value.trim();
   if(!d||!insp){showToast('Veuillez renseigner la date et l\'inspecteur');return;}
+  
   const noted = saisieData.filter(r=>r.notation);
-  if(noted.length===0){showToast('Aucune notation saisie');return;}
+  if(noted.length===0){showToast('Aucune notation saisie — sélectionnez une activité et notez des items');return;}
+  
   const scores = noted.map(r=>({A:100,B:66,C:33,D:0}[r.notation]||null)).filter(v=>v!==null);
   const score_global = scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length*10)/10:0;
   const nb_ko = noted.filter(r=>r.type==='KO'&&r.notation==='D').length;
   const nb_alertes = noted.filter(r=>r.type==='Alerte'&&['C','D'].includes(r.notation)).length;
+  
   const res = await post('/api/saisie',{date:d,inspecteur:insp,score_global,nb_ko,nb_alertes,resultats:noted});
-  if(res.success) showToast(`✓ Inspection enregistrée — ID ${res.inspection_id} — Score: ${score_global}%`);
-  else showToast('Erreur: '+res.error);
+  if(res.success){
+    showToast(`✓ Inspection enregistrée — Score: ${score_global}%`);
+    saisieData = [];
+    buildSaisie();
+  } else {
+    showToast('Erreur: '+(res.error||'inconnue'));
+  }
 }
 
 function exportSaisieCSV(){
